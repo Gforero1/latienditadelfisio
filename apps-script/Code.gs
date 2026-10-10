@@ -41,6 +41,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('🛒 Tienda')
     .addItem('Actualizar tasa BCV ahora', 'actualizarTasa')
     .addItem('Refrescar la web ahora', 'refrescarWeb')
+    .addItem('Crear o cambiar la clave del panel', 'cambiarClavePanel')
     .addSeparator()
     .addItem('Instalar o reparar', 'instalar')
     .addToUi();
@@ -299,6 +300,7 @@ function doPost(e) {
   var res = { ok: false };
   try {
     var d = JSON.parse(e.postData.contents);
+    if (d && typeof d.accion === 'string' && d.accion.indexOf('admin_') === 0) return salida_(admin_(d));
     if (!d || !/^TDF-[A-Z0-9]{4,8}$/.test(d.pedido) || !Array.isArray(d.items) || !d.items.length || d.items.length > 80) throw new Error('Pedido inválido');
     var lineas = d.items.map(function (i) {
       var q = Math.max(1, Math.min(999, parseInt(i.q, 10) || 1));
@@ -358,6 +360,106 @@ function onEdit(e) {
       refrescarWeb();
     }
   } catch (err) { }
+}
+
+/* ============================ PANEL PRIVADO (admin.html) ============================ */
+
+function salida_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+
+function hash_(txt, sal) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sal + '|' + txt, Utilities.Charset.UTF_8)
+    .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+}
+
+/** Menú Tienda > Crear o cambiar la clave del panel. La clave no se guarda en claro. */
+function cambiarClavePanel() {
+  var ui = SpreadsheetApp.getUi();
+  var r = ui.prompt('Clave del panel', 'Escribe la clave nueva (mínimo 8 caracteres). Es la que se pide al entrar al panel de productos.', ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var clave = r.getResponseText().trim();
+  if (clave.length < 8) { ui.alert('La clave debe tener al menos 8 caracteres. No se cambió nada.'); return; }
+  var sal = Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperties({ CLAVE_SAL: sal, CLAVE_HASH: hash_(clave, sal) });
+  ui.alert('Listo. La clave del panel quedó guardada.');
+}
+
+function claveOk_(clave) {
+  var cache = CacheService.getScriptCache(), fallos = Number(cache.get('fallos_clave')) || 0;
+  if (fallos >= 8) throw new Error('Demasiados intentos. Espera 10 minutos.');
+  var p = PropertiesService.getScriptProperties(), sal = p.getProperty('CLAVE_SAL'), h = p.getProperty('CLAVE_HASH');
+  if (!sal || !h) throw new Error('El panel aún no tiene clave. Créala en la hoja: menú Tienda > Crear o cambiar la clave del panel.');
+  if (typeof clave !== 'string' || hash_(clave.trim(), sal) !== h) {
+    cache.put('fallos_clave', String(fallos + 1), 600);
+    throw new Error('Clave incorrecta.');
+  }
+}
+
+function carpetaFotos_() {
+  var p = PropertiesService.getScriptProperties(), id = p.getProperty('CARPETA_FOTOS');
+  if (id) return id;
+  var c = Drive.Files.create({ name: 'Fotos La Tiendita del Fisio', mimeType: 'application/vnd.google-apps.folder' }, null, { fields: 'id' });
+  Drive.Permissions.create({ role: 'reader', type: 'anyone' }, c.id);
+  p.setProperty('CARPETA_FOTOS', c.id);
+  return c.id;
+}
+
+function subirFoto_(foto, nombre) {
+  if (!foto || !/^image\/(webp|jpeg|png)$/.test(foto.mime) || typeof foto.b64 !== 'string' || foto.b64.length > 900000) throw new Error('Foto no válida o demasiado grande.');
+  var ext = foto.mime.split('/')[1].replace('jpeg', 'jpg');
+  var base = String(nombre).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'producto';
+  var blob = Utilities.newBlob(Utilities.base64Decode(foto.b64), foto.mime, base + '-' + Date.now() + '.' + ext);
+  var f = Drive.Files.create({ name: blob.getName(), parents: [carpetaFotos_()] }, blob, { fields: 'id' });
+  return 'https://drive.google.com/thumbnail?id=' + f.id + '&sz=w640';
+}
+
+function filasAdmin_(sh) {
+  var n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, 7).getValues().map(function (f, i) {
+    var foto = String(f[4]).split(/[\n;]+|,\s+/)[0].trim();
+    return { fila: i + 2, n: String(f[0]).trim(), p: f[1] === '' ? null : Number(f[1]), c: String(f[2]).trim(), d: f[3] !== false, f: foto ? fotoUrl_(foto) : '', t: String(f[5]), o: String(f[6]) };
+  }).filter(function (x) { return x.n; });
+}
+
+function admin_(d) {
+  var res = { ok: false };
+  try {
+    claveOk_(d.clave);
+    var lock = LockService.getScriptLock(); lock.waitLock(20000);
+    try {
+      var sh = SpreadsheetApp.getActive().getSheetByName(H.PROD);
+      if (d.accion === 'admin_guardar' || d.accion === 'admin_eliminar') {
+        var fila = d.fila ? parseInt(d.fila, 10) : 0;
+        if (fila) { // la fila debe seguir siendo el mismo producto
+          if (fila < 2 || fila > sh.getLastRow() || String(sh.getRange(fila, 1).getValue()).trim() !== String(d.original || '').trim())
+            throw new Error('La lista cambió mientras editabas. Vuelve a abrir el producto.');
+        }
+        if (d.accion === 'admin_eliminar') {
+          if (!fila) throw new Error('Falta el producto a eliminar.');
+          sh.deleteRow(fila);
+        } else {
+          var x = d.producto || {}, nombre = limpio_(x.n, 120).trim();
+          if (!nombre) throw new Error('El producto necesita un nombre.');
+          var precio = x.p === '' || x.p === null || x.p === undefined ? '' : Number(String(x.p).replace(',', '.'));
+          if (precio !== '' && (!isFinite(precio) || precio < 0 || precio > 100000)) throw new Error('El precio no es válido.');
+          var foto = d.foto ? subirFoto_(d.foto, nombre) : null;
+          if (!fila) {
+            fila = Math.max(sh.getLastRow(), 1) + 1;
+            if (fila > sh.getMaxRows()) sh.insertRowAfter(sh.getMaxRows());
+            sh.getRange(fila, 4).insertCheckboxes();
+            sh.getRange(fila, 5).setValue(foto || '');
+          } else if (foto) sh.getRange(fila, 5).setValue(foto);
+          sh.getRange(fila, 1, 1, 4).setValues([[nombre, precio, limpio_(x.c, 60).trim() || 'Otros', x.d !== false]]);
+          sh.getRange(fila, 6, 1, 2).setValues([[limpio_(x.t, 400), limpio_(x.o, 300)]]);
+        }
+        SpreadsheetApp.flush();
+        refrescarWeb();
+      } else if (d.accion !== 'admin_listar') throw new Error('Acción desconocida.');
+      res.productos = filasAdmin_(sh);
+      res.ok = true;
+    } finally { lock.releaseLock(); }
+  } catch (err) { res.error = String(err && err.message || err); }
+  return res;
 }
 
 /* ============================ CATÁLOGO INICIAL ============================ */

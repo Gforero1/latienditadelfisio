@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es-VE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel | La Tiendita del Fisio</title>
+<meta name="theme-color" content="#3B0A57">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<script>
+window.TDF = { API: "https://script.google.com/macros/s/AKfycbzTDxVjvlPev-ya0BEim-tMkJeHwoRvSgDW7-DUaQmLpJZUiRHvEOmxJ44APSHQj-9E/exec" };
+</script>
+<style>
+:root{--mor:#3B0A57;--mor2:#7F069F;--azul:#0B54AC;--azul2:#02377A;--tinta:#1d1530;--gris:#6b6478;--linea:#e7e2ee;--fondo:#f6f3fa;--ok:#128C4B;--rojo:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--tinta);background:var(--fondo);padding-bottom:100px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:3px solid #f5b800;outline-offset:2px}
+[hidden]{display:none!important}
+header{background:linear-gradient(160deg,var(--mor),#2a1570 70%,var(--azul2));color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+header h1{font-size:1.1rem;margin:0}
+header a,header button{color:#fff;font-size:.88rem;text-decoration:underline;min-height:40px}
+.caja{max-width:420px;margin:40px auto;padding:22px 18px;background:#fff;border:1px solid var(--linea);border-radius:16px}
+.caja h2{margin:0 0 6px;font-size:1.2rem}
+.caja p{margin:0 0 14px;color:var(--gris);font-size:.93rem}
+label{display:block;font-weight:600;font-size:.92rem;margin:12px 0 5px}
+input[type=text],input[type=password],input[type=search],input[type=number],select,textarea{width:100%;min-height:48px;border:2px solid var(--linea);border-radius:12px;padding:10px 12px;font-size:1rem;background:#fff}
+textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--mor2);outline:0}
+.ayuda{font-size:.82rem;color:var(--gris);margin-top:4px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:12px;background:var(--mor2);color:#fff;font-weight:700;font-size:1.02rem}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn.sec{background:#f0ebf6;color:var(--mor)}
+.btn.rojo{background:#fff;color:var(--rojo);border:2px solid #f0c9c6}
+.err{color:var(--rojo);font-size:.92rem;margin-top:10px;min-height:1.2em}
+.barra{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--linea);padding:10px 12px}
+.barra .in{max-width:760px;margin:0 auto;display:grid;gap:8px;grid-template-columns:1fr auto}
+.barra select{min-height:46px;max-width:44vw}
+.barra input{min-height:46px}
+main{max-width:760px;margin:0 auto;padding:10px 12px}
+.cuenta{font-size:.86rem;color:var(--gris);margin:4px 4px 8px}
+.item{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;background:#fff;border:1px solid var(--linea);border-radius:14px;padding:8px;margin-bottom:8px}
+.item img{width:64px;height:64px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--linea)}
+.item b{display:block;font-size:.95rem;line-height:1.2}
+.item small{color:var(--gris)}
+.item .pr{font-weight:800;color:var(--azul2);font-size:1.05rem;white-space:nowrap}
+.item.ago{opacity:.6}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;border-radius:20px;padding:2px 8px;background:#ece9f0;color:#6b6478;margin-left:4px}
+#nuevo{position:fixed;left:12px;right:12px;width:auto;bottom:calc(12px + env(safe-area-inset-bottom));max-width:736px;margin:0 auto;z-index:6;box-shadow:0 6px 18px rgba(0,0,0,.25);min-height:58px;background:var(--ok)}
+dialog{border:0;padding:0;width:100%;max-width:560px;max-height:100dvh;border-radius:18px 18px 0 0;margin:auto auto 0;color:var(--tinta)}
+@media(min-width:620px){dialog{border-radius:18px;margin:auto}}
+dialog::backdrop{background:rgba(30,10,50,.55)}
+.hoja{display:flex;flex-direction:column;max-height:94dvh}
+.hoja .cab{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--linea)}
+.hoja .cab h2{margin:0;font-size:1.12rem}
+.hoja .x{width:44px;height:44px;font-size:1.6rem;color:var(--gris);margin:-8px -8px -8px 0}
+.hoja .cont{overflow:auto;padding:4px 16px 14px}
+.hoja .fin{padding:12px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--linea);display:grid;gap:8px}
+.fotoed{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center;margin-top:12px}
+.fotoed img{width:110px;height:110px;object-fit:contain;border:1px solid var(--linea);border-radius:12px;background:#fff}
+.precio{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+.precio span{font-size:1.3rem;font-weight:800;color:var(--azul2)}
+.precio input{font-size:1.25rem;font-weight:700}
+.sw{display:flex;align-items:center;gap:12px;margin-top:14px;min-height:48px}
+.sw input{width:26px;height:26px;accent-color:var(--ok)}
+.sw span{font-weight:600}
+#toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);background:#1d1530;color:#fff;padding:10px 16px;border-radius:24px;font-size:.92rem;opacity:0;pointer-events:none;transition:.2s;z-index:60;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.carga{text-align:center;color:var(--gris);padding:30px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Panel de productos</h1>
+  <span><a href="./" target="_blank" rel="noopener">Ver tienda</a> &nbsp; <button id="salir" type="button" hidden>Salir</button></span>
+</header>
+
+<section class="caja" id="entrar">
+  <h2>Entrar</h2>
+  <p>Este panel es solo para la dueña de la tienda.</p>
+  <form id="fEntrar">
+    <label for="clave">Clave</label>
+    <input id="clave" type="password" autocomplete="current-password" required>
+    <div class="err" id="eEntrar" role="alert"></div>
+    <button class="btn" type="submit" id="bEntrar">Entrar</button>
+  </form>
+</section>
+
+<div id="panel" hidden>
+  <div class="barra"><div class="in">
+    <input id="q" type="search" placeholder="Buscar producto..." aria-label="Buscar producto">
+    <select id="fcat" aria-label="Categoría"></select>
+  </div></div>
+  <main>
+    <p class="cuenta" id="cuenta"></p>
+    <div id="lista"><p class="carga">Cargando productos...</p></div>
+  </main>
+  <button class="btn" id="nuevo" type="button">+ Nuevo producto</button>
+</div>
+
+<dialog id="dEd" aria-labelledby="hEd">
+  <form class="hoja" id="fEd">
+    <div class="cab"><h2 id="hEd">Producto</h2><button class="x" type="button" id="cerrarEd" aria-label="Cerrar">×</button></div>
+    <div class="cont">
+      <div class="fotoed">
+        <img id="edFoto" src="img/logo.webp" alt="Foto del producto" width="110" height="110">
+        <div>
+          <button class="btn sec" type="button" id="bFoto">Cambiar foto</button>
+          <input id="inFoto" type="file" accept="image/*" hidden>
+          <div class="ayuda" id="ayFoto">Elige una foto de tu galería o toma una. Se ajusta sola.</div>
+        </div>
+      </div>
+      <label for="edN">Nombre</label>
+      <input id="edN" type="text" maxlength="120" required>
+      <label for="edP">Precio en dólares</label>
+      <div class="precio"><span>$</span><input id="edP" type="text" inputmode="decimal" placeholder="Vacío = precio a consultar"></div>
+      <label for="edC">Categoría</label>
+      <select id="edC"></select>
+      <input id="edCn" type="text" maxlength="60" placeholder="Nombre de la categoría nueva" hidden style="margin-top:8px">
+      <label class="sw"><input id="edD" type="checkbox"><span>Disponible (si lo quitas, sale como agotado)</span></label>
+      <label for="edT">Descripción corta</label>
+      <textarea id="edT" maxlength="400"></textarea>
+      <label for="edO">Opciones (colores o tallas)</label>
+      <input id="edO" type="text" maxlength="300" placeholder="Ej.: Azul, Negro, Rosado">
+      <div class="ayuda">Separadas por coma. Déjalo vacío si no aplica.</div>
+      <div class="err" id="eEd" role="alert"></div>
+    </div>
+    <div class="fin">
+      <button class="btn" type="submit" id="bGuardar">Guardar</button>
+      <button class="btn rojo" type="button" id="bEliminar">Eliminar producto</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dDel" aria-labelledby="hDel">
+  <div class="hoja">
+    <div class="cab"><h2 id="hDel">¿Eliminar este producto?</h2></div>
+    <div class="cont"><p id="tDel"></p><p class="ayuda">Si solo se agotó, es mejor quitarle "Disponible" para no perder la foto ni los datos.</p></div>
+    <div class="fin"><button class="btn rojo" type="button" id="siDel">Sí, eliminar</button><button class="btn sec" type="button" id="noDel">No, volver</button></div>
+  </div>
+</dialog>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+var API=window.TDF.API, clave="", P=[], actual=null, fotoNueva=null, NUEVA="__nueva__";
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function norm(s){return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()}
+function toast(t){var e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){e.classList.remove("on")},2200)}
+function foto(f){if(!f)return "img/logo.webp";return /^https?:/i.test(f)?f:"img/p/"+encodeURIComponent(f)}
+function usd(n){return n===null||n===""?"A consultar":"$"+(Math.round(n*100)%100?Number(n).toFixed(2):Math.round(n))}
+function llamar(datos){
+  datos.clave=clave;
+  return fetch(API,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(datos)})
+    .then(function(r){return r.json()})
+    .catch(function(){throw new Error("No hay conexión. Revisa tu internet e inténtalo de nuevo.")})
+    .then(function(j){if(!j.ok)throw new Error(j.error||"No se pudo completar.");return j});
+}
+function ocupado(b,si,txt){b.disabled=si;if(si){b.dataset.t=b.textContent;b.textContent=txt}else if(b.dataset.t)b.textContent=b.dataset.t}
+
+/* ---------- entrar ---------- */
+function entrar(c,silencio){
+  clave=c;ocupado($("bEntrar"),true,"Entrando...");$("eEntrar").textContent="";
+  return llamar({accion:"admin_listar"}).then(function(j){
+    try{localStorage.setItem("tdf_panel",c)}catch(e){}
+    P=j.productos;$("entrar").hidden=true;$("panel").hidden=false;$("salir").hidden=false;pintar();
+  }).catch(function(e){
+    clave="";if(!silencio)$("eEntrar").textContent=e.message;
+    if(/incorrecta/i.test(e.message))try{localStorage.removeItem("tdf_panel")}catch(x){}
+  }).then(function(){ocupado($("bEntrar"),false)});
+}
+$("fEntrar").addEventListener("submit",function(e){e.preventDefault();entrar($("clave").value.trim())});
+$("salir").onclick=function(){try{localStorage.removeItem("tdf_panel")}catch(e){}location.reload()};
+
+/* ---------- lista ---------- */
+function cats(){var c=[];P.forEach(function(p){if(p.c&&c.indexOf(p.c)<0)c.push(p.c)});return c}
+function pintar(){
+  var sel=$("fcat"),v=sel.value||"";
+  sel.innerHTML='<option value="">Todas</option>'+cats().map(function(c){return '<option'+(c===v?" selected":"")+">"+esc(c)+"</option>"}).join("");
+  var q=norm($("q").value.trim()),c=sel.value;
+  var l=P.filter(function(p){return(!c||p.c===c)&&(!q||norm(p.n).indexOf(q)>-1)});
+  $("cuenta").textContent=l.length+" de "+P.length+" productos";
+  $("lista").innerHTML=l.length?l.map(function(p){
+    return '<button type="button" class="item'+(p.d?"":" ago")+'" data-fila="'+p.fila+'"><img src="'+esc(foto(p.f))+'" alt="" width="64" height="64" loading="lazy"><span><b>'+esc(p.n)+(p.d?"":'<span class="tag">Agotado</span>')+"</b><small>"+esc(p.c)+'</small></span><span class="pr">'+usd(p.p)+"</span></button>";
+  }).join(""):'<p class="carga">No hay productos con esa búsqueda.</p>';
+}
+$("q").addEventListener("input",pintar);$("fcat").addEventListener("change",pintar);
+$("lista").addEventListener("click",function(e){var b=e.target.closest(".item");if(!b)return;var f=+b.dataset.fila;abrir(P.filter(function(p){return p.fila===f})[0])});
+$("nuevo").onclick=function(){abrir(null)};
+document.addEventListener("error",function(e){var i=e.target;if(i.tagName==="IMG"&&!i.dataset.f){i.dataset.f=1;i.src="img/logo.webp"}},true);
+
+/* ---------- editar ---------- */
+function abrir(p){
+  actual=p;fotoNueva=null;$("eEd").textContent="";
+  $("hEd").textContent=p?"Editar producto":"Nuevo producto";
+  $("edFoto").removeAttribute("data-f");$("edFoto").src=foto(p&&p.f);
+  $("ayFoto").textContent="Elige una foto de tu galería o toma una. Se ajusta sola.";
+  $("edN").value=p?p.n:"";$("edP").value=p&&p.p!==null?String(p.p).replace(".",","):"";
+  var c=cats(),sel=p?p.c:($("fcat").value||c[0]||"");
+  $("edC").innerHTML=c.map(function(x){return '<option'+(x===sel?" selected":"")+">"+esc(x)+"</option>"}).join("")+'<option value="'+NUEVA+'">+ Categoría nueva...</option>';
+  $("edCn").hidden=true;$("edCn").value="";
+  $("edD").checked=p?p.d:true;$("edT").value=p?p.t:"";$("edO").value=p?p.o:"";
+  $("bEliminar").hidden=!p;$("dEd").showModal();
+}
+$("edC").addEventListener("change",function(){var n=this.value===NUEVA;$("edCn").hidden=!n;if(n)$("edCn").focus()});
+$("cerrarEd").onclick=function(){$("dEd").close()};
+$("bFoto").onclick=function(){$("inFoto").click()};
+$("inFoto").addEventListener("change",function(){
+  var f=this.files&&this.files[0];this.value="";if(!f)return;
+  var url=URL.createObjectURL(f),img=new Image();
+  img.onload=function(){
+    var L=640,cv=document.createElement("canvas");cv.width=cv.height=L;var x=cv.getContext("2d");
+    x.fillStyle="#fff";x.fillRect(0,0,L,L);
+    var k=Math.min(L/img.width,L/img.height),w=img.width*k,h=img.height*k;
+    x.imageSmoothingQuality="high";x.drawImage(img,(L-w)/2,(L-h)/2,w,h);URL.revokeObjectURL(url);
+    var d=cv.toDataURL("image/webp",.8);if(d.indexOf("data:image/webp")!==0)d=cv.toDataURL("image/jpeg",.82);
+    var m=d.match(/^data:(image\/\w+);base64,(.+)$/);fotoNueva={mime:m[1],b64:m[2]};
+    $("edFoto").src=d;$("ayFoto").textContent="Foto lista. Se sube al pulsar Guardar.";
+  };
+  img.onerror=function(){URL.revokeObjectURL(url);$("eEd").textContent="No se pudo leer esa foto. Prueba con otra."};
+  img.src=url;
+});
+$("fEd").addEventListener("submit",function(e){
+  e.preventDefault();$("eEd").textContent="";
+  var cat=$("edC").value===NUEVA?$("edCn").value.trim():$("edC").value;
+  if(!cat){$("eEd").textContent="Escribe el nombre de la categoría nueva.";return}
+  var pr=$("edP").value.trim().replace(",",".");
+  if(pr!==""&&(!isFinite(Number(pr))||Number(pr)<0)){$("eEd").textContent="El precio debe ser solo un número, por ejemplo 25 o 12,50.";return}
+  var b=$("bGuardar");ocupado(b,true,fotoNueva?"Subiendo foto y guardando...":"Guardando...");
+  llamar({accion:"admin_guardar",fila:actual?actual.fila:0,original:actual?actual.n:"",foto:fotoNueva,
+    producto:{n:$("edN").value.trim(),p:pr===""?"":Number(pr),c:cat,d:$("edD").checked,t:$("edT").value.trim(),o:$("edO").value.trim()}})
+  .then(function(j){P=j.productos;pintar();$("dEd").close();toast("Guardado. Sale en la tienda en un par de minutos.")})
+  .catch(function(er){$("eEd").textContent=er.message})
+  .then(function(){ocupado(b,false)});
+});
+$("bEliminar").onclick=function(){$("tDel").textContent=actual.n;$("dDel").showModal()};
+$("noDel").onclick=function(){$("dDel").close()};
+$("siDel").onclick=function(){
+  var b=this;ocupado(b,true,"Eliminando...");
+  llamar({accion:"admin_eliminar",fila:actual.fila,original:actual.n})
+  .then(function(j){P=j.productos;pintar();$("dDel").close();$("dEd").close();toast("Producto eliminado.")})
+  .catch(function(er){$("dDel").close();$("eEd").textContent=er.message})
+  .then(function(){ocupado(b,false)});
+};
+
+var g="";try{g=localStorage.getItem("tdf_panel")||""}catch(e){}
+if(g)entrar(g,true);
+})();
+</script>
+</body>
+</html>
