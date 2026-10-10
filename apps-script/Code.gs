@@ -1,4 +1,5 @@
 /**
+ * @OnlyCurrentDoc
  * La Tiendita del Fisio: catálogo, tasa BCV y pedidos.
  * Hoja de cálculo = panel de la tienda. La web lee de aquí y registra aquí los pedidos.
  *
@@ -10,7 +11,6 @@ var ZONA = 'America/Caracas';
 var ESTADOS = ['Pendiente de pago', 'Pagado', 'Enviado', 'Entregado', 'Cancelado'];
 var COLOR_ESTADO = { 'Pendiente de pago': '#FFE9A8', 'Pagado': '#BFE8C6', 'Enviado': '#BFD9FF', 'Entregado': '#E3D0F5', 'Cancelado': '#E6E6E6' };
 var FILA_HIST = 15; // primera fila de datos del historial de tasas
-var CARPETA_FOTOS = 'Fotos La Tiendita del Fisio';
 
 // clave, etiqueta visible, valor inicial
 var AJUSTES = [
@@ -56,7 +56,6 @@ function instalar() {
   crearAjustes_(ss);
   var sobra = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
   if (sobra && sobra.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(sobra);
-  crearCarpetaFotos_(ss);
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'actualizarTasa') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('actualizarTasa').timeBased().everyHours(4).create();
   actualizarTasa();
@@ -85,7 +84,7 @@ function crearProductos_(ss) {
   [260, 80, 170, 90, 200, 360, 240].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
   sh.getRange(1, 2).setNote('Solo el número, en dólares. Si lo dejas vacío, la web muestra "Precio a consultar".');
   sh.getRange(1, 4).setNote('Desmarca la casilla cuando se agote. Vuelve a marcarla cuando llegue.');
-  sh.getRange(1, 5).setNote('Nombre del archivo de la foto. Para una foto nueva: súbela a la carpeta de Drive "' + CARPETA_FOTOS + '" y escribe aquí su nombre. También puedes pegar un enlace directo a una imagen.');
+  sh.getRange(1, 5).setNote('Foto del producto. Para una foto nueva: súbela a Google Drive, compártela como "Cualquier persona con el enlace", copia el enlace y pégalo aquí. Si la dejas vacía sale el logo.');
   sh.getRange(1, 7).setNote('Opcional. Separadas por coma, por ejemplo: Azul, Negro, Rosado. El cliente elige una al agregar.');
 }
 
@@ -137,14 +136,6 @@ function crearAjustes_(ss) {
   sh.getRange(2, 2, filas.length, 1).setNumberFormat('@').setWrap(true).setBackground('#FFF9E0');
   sh.getRange(2, 1, filas.length, 1).setFontWeight('bold').setWrap(true);
   sh.setColumnWidth(1, 330); sh.setColumnWidth(2, 520); sh.setFrozenRows(1);
-}
-
-function crearCarpetaFotos_(ss) {
-  var props = PropertiesService.getDocumentProperties();
-  if (props.getProperty('CARPETA_FOTOS')) return;
-  var carpeta = DriveApp.createFolder(CARPETA_FOTOS);
-  carpeta.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  props.setProperty('CARPETA_FOTOS', carpeta.getId());
 }
 
 /* ============================ TASA BCV ============================ */
@@ -261,32 +252,20 @@ function ajustes_(ss) {
   return out;
 }
 
-function fotosDrive_() {
-  var id = PropertiesService.getDocumentProperties().getProperty('CARPETA_FOTOS'), mapa = {};
-  if (!id) return mapa;
-  try {
-    var it = DriveApp.getFolderById(id).getFiles();
-    while (it.hasNext()) {
-      var f = it.next(), n = f.getName().toLowerCase();
-      mapa[n] = f.getId(); mapa[n.replace(/\.[a-z0-9]+$/, '')] = f.getId();
-    }
-  } catch (e) { }
-  return mapa;
+function fotoUrl_(x) { // enlace de Drive compartido -> imagen directa
+  var m = x.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?[^#]*id=)([\w-]{20,})/);
+  return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w640' : x;
 }
 
 function datos_() {
-  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName(H.PROD), drive = fotosDrive_();
+  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName(H.PROD);
   var filas = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues() : [];
   var productos = [];
   filas.forEach(function (f) {
     var nombre = String(f[0]).trim();
     if (!nombre) return;
     var precio = f[1] === '' || f[1] === null ? null : Number(String(f[1]).replace(',', '.'));
-    var fotos = String(f[4]).split(/[\n,;]+/).map(function (x) { return x.trim(); }).filter(String).map(function (x) {
-      if (/^https?:\/\//i.test(x)) return x;
-      var k = x.toLowerCase();
-      return drive[k] ? 'https://drive.google.com/thumbnail?id=' + drive[k] + '&sz=w640' : x;
-    });
+    var fotos = String(f[4]).split(/[\n;]+|,\s+/).map(function (x) { return x.trim(); }).filter(String).map(fotoUrl_);
     productos.push({
       n: nombre, p: isFinite(precio) && precio > 0 ? precio : null, c: String(f[2]).trim() || 'Otros',
       d: f[3] !== false && String(f[3]).toLowerCase() !== 'no', f: fotos, t: String(f[5]).trim(),
