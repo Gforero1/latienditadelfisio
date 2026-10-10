@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://gforero1.github.io/latienditadelfisio/sitemap.xml
