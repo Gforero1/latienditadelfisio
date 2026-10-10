@@ -8,8 +8,9 @@
  */
 var H = { PROD: 'Productos', TASA: 'Tasa', PED: 'Pedidos', AJ: 'Ajustes' };
 var ZONA = 'America/Caracas';
-var ESTADOS = ['Pendiente de pago', 'Pagado', 'Enviado', 'Entregado', 'Cancelado'];
-var COLOR_ESTADO = { 'Pendiente de pago': '#FFE9A8', 'Pagado': '#BFE8C6', 'Enviado': '#BFD9FF', 'Entregado': '#E3D0F5', 'Cancelado': '#E6E6E6' };
+var ESTADOS = ['Sin confirmar', 'Pendiente de pago', 'Pagado', 'Enviado', 'Entregado', 'Cancelado', 'No concretado'];
+var DIAS_SIN_CONFIRMAR = 7; // pasado este plazo, un pedido sin confirmar pasa a "No concretado"
+var COLOR_ESTADO = { 'Sin confirmar': '#F1F1F1', 'No concretado': '#E0E0E0', 'Pendiente de pago': '#FFE9A8', 'Pagado': '#BFE8C6', 'Enviado': '#BFD9FF', 'Entregado': '#E3D0F5', 'Cancelado': '#E6E6E6' };
 var FILA_HIST = 15; // primera fila de datos del historial de tasas
 
 // clave, etiqueta visible, valor inicial
@@ -112,7 +113,7 @@ function crearTasa_(ss) {
 
 function crearPedidos_(ss) {
   var sh = hoja_(ss, H.PED, 2);
-  var cab = ['Fecha', 'N° pedido', 'Cliente', 'Productos', 'Total $', 'Total Bs', 'Tasa', 'Estado', 'Teléfono del cliente', 'Avisar al cliente', 'Notas'];
+  var cab = ['Fecha', 'N° pedido', 'Cliente', 'Productos', 'Total $', 'Total Bs', 'Tasa', 'Estado', 'Teléfono del cliente', 'Avisar al cliente', 'Notas', 'Comprobante'];
   sh.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#3B0A57').setFontColor('#FFFFFF');
   sh.setFrozenRows(1);
   var n = sh.getMaxRows() - 1;
@@ -127,7 +128,8 @@ function crearPedidos_(ss) {
   sh.getRange(2, 6, n, 1).setNumberFormat('"Bs "#,##0.00');
   sh.getRange(2, 9, n, 1).setNumberFormat('@');
   sh.getRange(2, 4, n, 1).setWrap(true);
-  [95, 100, 140, 360, 85, 120, 80, 150, 150, 150, 200].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  [95, 100, 140, 360, 85, 120, 80, 150, 150, 150, 200, 220].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  sh.getRange(1, 8).setNote('"Sin confirmar" = alguien armó el pedido en la web pero aún no te ha escrito. Cuando te llegue su WhatsApp, pásalo a "Pendiente de pago". Si no escribe en ' + DIAS_SIN_CONFIRMAR + ' días pasa solo a "No concretado".');
   sh.getRange(1, 9).setNote('Pega aquí el número desde el que te escribió el cliente (ej. 04121234567). Así el enlace "Avisar" abre su chat directo.');
   sh.getRange(1, 10).setNote('Toca el enlace para abrir WhatsApp con el mensaje ya escrito según el estado del pedido.');
 }
@@ -223,6 +225,19 @@ function vigente_(sh) {
   return v;
 }
 
+/** Los pedidos que nadie confirmó por WhatsApp dejan de contar pasado el plazo. */
+function limpiarPedidos_() {
+  var sh = SpreadsheetApp.getActive().getSheetByName(H.PED), n = sh.getLastRow() - 1;
+  if (n < 1) return;
+  var limite = Date.now() - DIAS_SIN_CONFIRMAR * 864e5, v = sh.getRange(2, 1, n, 8).getValues();
+  for (var i = 0; i < v.length; i++) {
+    if (v[i][7] === ESTADOS[0] && v[i][0] instanceof Date && v[i][0].getTime() < limite) {
+      sh.getRange(i + 2, 8).setValue('No concretado');
+      sh.getRange(i + 2, 10).clearContent();
+    }
+  }
+}
+
 /** Se ejecuta sola cada hora. BCV primero, respaldo si falla, y si todo falla se queda la anterior. */
 function actualizarTasa() {
   var sh = SpreadsheetApp.getActive().getSheetByName(H.TASA), notas = [];
@@ -241,6 +256,7 @@ function actualizarTasa() {
   if (notas.join(' ').indexOf('ok') === -1) notas.push('Se mantiene la tasa anterior.');
   sh.getRange('B7:B8').setValues([[Utilities.formatDate(new Date(), ZONA, 'dd/MM/yyyy HH:mm')], [notas.join(' | ')]]);
   refrescarWeb();
+  try { limpiarPedidos_(); } catch (e3) { }
 }
 
 function tasaParaWeb_(ss) {
@@ -343,6 +359,7 @@ function avisoUrl_(aj, f) { // f = fila de Pedidos (9 columnas)
   var pedido = f[1], estado = f[7];
   if (!pedido || !estado) return '';
   var plantilla = aj['msg_' + estado] || '';
+  if (!plantilla) return '';
   var total = '$' + (Number(f[4]) || 0).toFixed(2) + (Number(f[5]) ? ' (Bs ' + Number(f[5]).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')' : '');
   var nombre = String(f[2]).replace(/^'/, '').trim();
   var msg = plantilla.replace(/\{nombre\}/g, nombre).replace(/\{pedido\}/g, pedido).replace(/\{total\}/g, total).replace(/Hola\s+,/, 'Hola,');
@@ -423,6 +440,30 @@ function subirFoto_(foto, nombre) {
   return 'https://drive.google.com/thumbnail?id=' + f.id + '&sz=w640';
 }
 
+/** Carpeta PRIVADA de comprobantes: Comprobantes / año-mes / pedido. Nunca se comparte por enlace público. */
+function carpetaComprobantes_() {
+  var p = PropertiesService.getScriptProperties(), raiz = p.getProperty('CARPETA_COMP');
+  if (!raiz) {
+    raiz = Drive.Files.create({ name: 'Comprobantes de pago - La Tiendita del Fisio', mimeType: 'application/vnd.google-apps.folder' }, null, { fields: 'id' }).id;
+    p.setProperty('CARPETA_COMP', raiz);
+  }
+  var mes = Utilities.formatDate(new Date(), ZONA, 'yyyy-MM'), clave = 'COMP_' + mes, id = p.getProperty(clave);
+  if (!id) {
+    id = Drive.Files.create({ name: mes, mimeType: 'application/vnd.google-apps.folder', parents: [raiz] }, null, { fields: 'id' }).id;
+    p.setProperty(clave, id);
+  }
+  return id;
+}
+
+function subirComprobante_(c, pedido, cliente) {
+  if (!c || !/^image\/(jpeg|png|webp)$/.test(c.mime) || typeof c.b64 !== 'string' || c.b64.length > 1600000) throw new Error('El comprobante no es una imagen válida o pesa demasiado.');
+  var ext = c.mime.split('/')[1].replace('jpeg', 'jpg');
+  var quien = String(cliente || '').replace(/[^\wáéíóúñÁÉÍÓÚÑ ]/g, '').trim().slice(0, 30);
+  var nombre = pedido + ' ' + Utilities.formatDate(new Date(), ZONA, 'yyyy-MM-dd HHmm') + (quien ? ' ' + quien : '') + '.' + ext;
+  var f = Drive.Files.create({ name: nombre, parents: [carpetaComprobantes_()] }, Utilities.newBlob(Utilities.base64Decode(c.b64), c.mime, nombre), { fields: 'id' });
+  return 'https://drive.google.com/file/d/' + f.id + '/view';
+}
+
 function filasAdmin_(sh) {
   var n = sh.getLastRow() - 1;
   if (n < 1) return [];
@@ -436,9 +477,9 @@ function pedidosAdmin_(ss, pe) {
   var n = Math.min(pe.getLastRow() - 1, 200);
   if (n < 1) return [];
   var aj = ajustes_(ss);
-  return pe.getRange(2, 1, n, 11).getValues().filter(function (f) { return f[1]; }).map(function (f) {
+  return pe.getRange(2, 1, n, 12).getValues().filter(function (f) { return f[1]; }).map(function (f) {
     return { id: String(f[1]), fecha: f[0] instanceof Date ? f[0].toISOString() : String(f[0]), cliente: String(f[2]), productos: String(f[3]),
-      usd: Number(f[4]) || 0, bs: Number(f[5]) || 0, estado: String(f[7]), tel: String(f[8]), notas: String(f[10]), aviso: avisoUrl_(aj, f) };
+      usd: Number(f[4]) || 0, bs: Number(f[5]) || 0, estado: String(f[7]), tel: String(f[8]), notas: String(f[10]), aviso: avisoUrl_(aj, f), comp: /^https:\/\/drive\.google\.com\//.test(String(f[11])) ? String(f[11]) : '' };
   });
 }
 
@@ -487,6 +528,7 @@ function admin_(d) {
           if (!fp) throw new Error('No encontré ese pedido. Actualiza la lista.');
           pe.getRange(fp, 8, 1, 2).setValues([[d.estado, limpio_(String(d.tel || '').replace(/[^\d+ ()-]/g, ''), 25)]]);
           pe.getRange(fp, 11).setValue(limpio_(d.notas, 300));
+          if (d.comprobante) pe.getRange(fp, 12).setValue(subirComprobante_(d.comprobante, d.pedido, pe.getRange(fp, 3).getValue()));
           enlaceAviso_(ss, pe, fp);
           SpreadsheetApp.flush();
         }

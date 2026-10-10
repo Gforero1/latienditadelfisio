@@ -58,6 +58,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--mor2);outline:0}
 .ped .acc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .ped .btn{min-height:46px;font-size:.95rem}
 .ped a.btn{background:var(--ok);text-decoration:none}
+.nota{font-size:.88rem;color:var(--gris);background:#fff;border:1px dashed var(--linea);border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.ped .acc span{display:block}
 .e0{border-left:6px solid #F2C037}.e1{border-left:6px solid #2E9E5B}.e2{border-left:6px solid #3B82F6}.e3{border-left:6px solid #9B6BD3}.e4{border-left:6px solid #BDBDBD}
 .barra{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--linea);padding:10px 12px}
 .barra .in{max-width:760px;margin:0 auto;display:grid;gap:8px;grid-template-columns:1fr auto}
@@ -180,6 +182,7 @@ dialog::backdrop{background:rgba(30,10,50,.55)}
   </div>
 </dialog>
 
+<input id="inComp" type="file" accept="image/*" hidden>
 <div id="toast" role="status"></div>
 
 <script>
@@ -290,35 +293,59 @@ $("siDel").onclick=function(){
 };
 
 /* ---------- pedidos ---------- */
-var PED=null,EST=[],fe="";
+var PED=null,EST=[],fe="activos",SC="Sin confirmar",PP="Pendiente de pago",NC="No concretado",CA="Cancelado",COB=["Pagado","Enviado","Entregado"];
+var CLS={"Sin confirmar":"e4","Pendiente de pago":"e0","Pagado":"e1","Enviado":"e2","Entregado":"e3","Cancelado":"e4","No concretado":"e4"};
+function real(o){return o.estado===PP||COB.indexOf(o.estado)>-1}
 function ver(v){var pr=v==="prod";$("vProd").hidden=!pr;$("vPed").hidden=pr;$("tProd").setAttribute("aria-pressed",pr);$("tPed").setAttribute("aria-pressed",!pr);if(!pr)cargarPed()}
 $("tProd").onclick=function(){ver("prod")};$("tPed").onclick=function(){ver("ped")};
 function cargarPed(){llamar({accion:"admin_pedidos"}).then(function(j){PED=j.pedidos;EST=j.estados;pintarPed()}).catch(function(e){$("lped").innerHTML='<p class="carga">'+esc(e.message)+"</p>"})}
 function fechaC(f){var d=new Date(f);return isNaN(d)?f:d.toLocaleString("es-VE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
+function chip(v,t){return '<button type="button" data-e="'+esc(v)+'" aria-pressed="'+(fe===v)+'">'+esc(t)+"</button>"}
 function pintarPed(){
-  var hoy=new Date(),mes=PED.filter(function(o){var d=new Date(o.fecha);return d.getMonth()===hoy.getMonth()&&d.getFullYear()===hoy.getFullYear()});
-  var cob=mes.filter(function(o){return EST.indexOf(o.estado)>=1&&EST.indexOf(o.estado)<=3}).reduce(function(a,o){return a+o.usd},0);
-  var pend=PED.filter(function(o){return o.estado===EST[0]}).length;
-  var cnt={};PED.forEach(function(o){if(o.estado===EST[4]||Date.now()-new Date(o.fecha)>30*864e5)return;o.productos.split("\n").forEach(function(l){var m=l.match(/^(\d+) x (.+?)(?: \(| = |$)/);if(m)cnt[m[2]]=(cnt[m[2]]||0)+ +m[1]})});
+  var hoy=new Date(),reales=PED.filter(real),mes=reales.filter(function(o){var d=new Date(o.fecha);return d.getMonth()===hoy.getMonth()&&d.getFullYear()===hoy.getFullYear()});
+  var cob=mes.filter(function(o){return COB.indexOf(o.estado)>-1}).reduce(function(a,o){return a+o.usd},0);
+  var pend=PED.filter(function(o){return o.estado===PP}).length,sinc=PED.filter(function(o){return o.estado===SC}).length;
+  var cnt={};reales.forEach(function(o){if(Date.now()-new Date(o.fecha)>30*864e5)return;o.productos.split("\n").forEach(function(l){var m=l.match(/^(\d+) x (.+?)(?: \(| = |$)/);if(m)cnt[m[2]]=(cnt[m[2]]||0)+ +m[1]})});
   var top=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]}).slice(0,5);
-  $("stats").innerHTML="<div><b>"+mes.length+"</b><span>pedidos este mes</span></div><div><b>$"+Math.round(cob)+"</b><span>cobrado este mes</span></div><div><b>"+pend+"</b><span>pendientes de pago</span></div>"+
-    (top.length?'<div class="top" style="grid-column:1/-1"><h3>Lo más pedido (30 días)</h3><ol>'+top.map(function(n){return "<li>"+esc(n)+" ("+cnt[n]+")</li>"}).join("")+"</ol></div>":"");
-  $("fEst").innerHTML='<button type="button" data-e="" aria-pressed="'+(fe==="")+'">Todos</button>'+EST.map(function(e){return '<button type="button" data-e="'+esc(e)+'" aria-pressed="'+(fe===e)+'">'+esc(e)+"</button>"}).join("");
-  var l=PED.filter(function(o){return !fe||o.estado===fe});
-  $("lped").innerHTML=l.length?l.map(function(o){
-    return '<div class="ped e'+EST.indexOf(o.estado)+'" data-id="'+esc(o.id)+'"><div class="l1"><b>'+esc(o.id)+(o.cliente?" · "+esc(o.cliente):"")+"</b><span>$"+o.usd.toFixed(2)+"</span></div><small>"+esc(fechaC(o.fecha))+(o.bs?" · Bs "+o.bs.toLocaleString("es-VE",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+"</small><pre>"+esc(o.productos)+"</pre>"+
-      '<div class="fila"><select aria-label="Estado">'+EST.map(function(e){return "<option"+(e===o.estado?" selected":"")+">"+esc(e)+"</option>"}).join("")+'</select><input type="text" inputmode="tel" placeholder="Teléfono del cliente" aria-label="Teléfono del cliente" value="'+esc(o.tel)+'"></div>'+
+  $("stats").innerHTML="<div><b>"+mes.length+"</b><span>pedidos confirmados este mes</span></div><div><b>$"+Math.round(cob)+"</b><span>cobrado este mes</span></div><div><b>"+pend+"</b><span>pendientes de pago</span></div>"+
+    (top.length?'<div class="top" style="grid-column:1/-1"><h3>Lo más pedido (30 días, solo confirmados)</h3><ol>'+top.map(function(n){return "<li>"+esc(n)+" ("+cnt[n]+")</li>"}).join("")+"</ol></div>":"");
+  $("fEst").innerHTML=chip("activos","En curso")+chip(SC,"Sin confirmar ("+sinc+")")+chip("Entregado","Entregados")+chip("cerrados","Cancelados y no concretados")+chip("","Todos");
+  var l=PED.filter(function(o){return fe===""||(fe==="activos"?(o.estado===PP||o.estado==="Pagado"||o.estado==="Enviado"):fe==="cerrados"?(o.estado===CA||o.estado===NC):o.estado===fe)});
+  var ayuda=fe===SC?'<p class="nota">Alguien armó estos pedidos en la web, pero no sabemos si llegó a escribirte. Cuando te llegue su WhatsApp con el número de pedido, pulsa "Llegó por WhatsApp". Los que no escriban en 7 días se cierran solos.</p>':"";
+  $("lped").innerHTML=ayuda+(l.length?l.map(function(o){
+    var cab='<div class="ped '+(CLS[o.estado]||"e4")+'" data-id="'+esc(o.id)+'"><div class="l1"><b>'+esc(o.id)+(o.cliente?" · "+esc(o.cliente):"")+"</b><span>$"+o.usd.toFixed(2)+"</span></div><small>"+esc(fechaC(o.fecha))+(o.bs?" · Bs "+o.bs.toLocaleString("es-VE",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+" · "+esc(o.estado)+"</small><pre>"+esc(o.productos)+"</pre>";
+    if(o.estado===SC)return cab+'<div class="acc"><button type="button" class="btn" data-conf="1">Llegó por WhatsApp</button><button type="button" class="btn sec" data-nc="1">No escribió</button></div></div>';
+    return cab+'<div class="fila"><select aria-label="Estado">'+EST.filter(function(e){return e!==SC}).map(function(e){return "<option"+(e===o.estado?" selected":"")+">"+esc(e)+"</option>"}).join("")+'</select><input type="text" inputmode="tel" placeholder="Teléfono del cliente" aria-label="Teléfono del cliente" value="'+esc(o.tel)+'"></div>'+
       '<input type="text" placeholder="Notas (opcional)" aria-label="Notas" value="'+esc(o.notas)+'" style="margin-top:8px">'+
-      '<div class="acc"><button type="button" class="btn sec" data-g="1">Guardar</button><a class="btn" target="_blank" rel="noopener" href="'+esc(o.aviso)+'">Avisar por WhatsApp</a></div></div>';
-  }).join(""):'<p class="carga">No hay pedidos'+(fe?" en este estado":" todavía")+".</p>";
+      '<div class="acc"><button type="button" class="btn sec" data-g="1">Guardar</button>'+(o.aviso?'<a class="btn" target="_blank" rel="noopener" href="'+esc(o.aviso)+'">Avisar por WhatsApp</a>':"<span></span>")+"</div>"+
+      '<div class="acc"><button type="button" class="btn sec" data-comp="1">'+(o.comp?"Cambiar comprobante":"Subir comprobante de pago")+"</button>"+(o.comp?'<a class="btn sec" target="_blank" rel="noopener" href="'+esc(o.comp)+'">Ver comprobante</a>':"<span></span>")+"</div></div>";
+  }).join(""):'<p class="carga">No hay pedidos aquí.</p>');
 }
+function datosPed(c,extra){var sel=c.querySelector("select"),ins=c.querySelectorAll("input"),o=PED.filter(function(x){return x.id===c.dataset.id})[0]||{};
+  var d={accion:"admin_pedido",pedido:c.dataset.id,estado:sel?sel.value:o.estado,tel:ins.length?ins[0].value.trim():o.tel||"",notas:ins.length>1?ins[1].value.trim():o.notas||""};
+  for(var k in extra)d[k]=extra[k];return d}
+function guardarPed(b,c,extra,txt,ok){ocupado(b,true,txt);
+  return llamar(datosPed(c,extra)).then(function(j){PED=j.pedidos;EST=j.estados;pintarPed();toast(ok)}).catch(function(er){ocupado(b,false);toast(er.message)})}
 $("fEst").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;fe=b.dataset.e;pintarPed()});
+var compPara=null;
 $("lped").addEventListener("click",function(e){
-  var b=e.target.closest("[data-g]");if(!b)return;var c=b.closest(".ped"),ins=c.querySelectorAll("input");
-  ocupado(b,true,"Guardando...");
-  llamar({accion:"admin_pedido",pedido:c.dataset.id,estado:c.querySelector("select").value,tel:ins[0].value.trim(),notas:ins[1].value.trim()})
-  .then(function(j){PED=j.pedidos;EST=j.estados;pintarPed();toast("Pedido actualizado. Ya puedes avisar al cliente.")})
-  .catch(function(er){ocupado(b,false);toast(er.message)});
+  var b=e.target.closest("button");if(!b)return;var c=b.closest(".ped");
+  if(b.dataset.g)guardarPed(b,c,{},"Guardando...","Pedido actualizado.");
+  else if(b.dataset.conf)guardarPed(b,c,{estado:PP},"Confirmando...","Confirmado. Ya está en pedidos en curso.");
+  else if(b.dataset.nc)guardarPed(b,c,{estado:NC},"Cerrando...","Marcado como no concretado.");
+  else if(b.dataset.comp){compPara={b:b,c:c};$("inComp").click()}
+});
+$("inComp").addEventListener("change",function(){
+  var f=this.files&&this.files[0];this.value="";if(!f||!compPara)return;var t=compPara;compPara=null;
+  var url=URL.createObjectURL(f),img=new Image();
+  img.onload=function(){
+    var M=1600,k=Math.min(1,M/Math.max(img.width,img.height)),cv=document.createElement("canvas");cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
+    var x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cv.width,cv.height);x.imageSmoothingQuality="high";x.drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(url);
+    var m=cv.toDataURL("image/jpeg",.85).match(/^data:(image\/\w+);base64,(.+)$/);
+    guardarPed(t.b,t.c,{comprobante:{mime:m[1],b64:m[2]}},"Subiendo comprobante...","Comprobante guardado en Drive.");
+  };
+  img.onerror=function(){URL.revokeObjectURL(url);toast("No se pudo leer esa imagen. Prueba con otra.")};
+  img.src=url;
 });
 
 var g="";try{g=localStorage.getItem("tdf_panel")||""}catch(e){}
