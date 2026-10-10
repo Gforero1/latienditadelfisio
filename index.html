@@ -379,6 +379,10 @@ function mensaje(){
 }
 function enviar(){
   var T=totales();if(!T.n)return;
+  // un pedido ya enviado y luego modificado es un pedido nuevo: número nuevo
+  var firma=JSON.stringify(Object.keys(carro).sort().map(function(k){return[k,carro[k].q]})),ant=LS.get("tdf_env");
+  if(ant&&ant.ped===ped&&ant.firma!==firma){ped="TDF-"+nuevoId();LS.set("tdf_ped",ped)}
+  LS.set("tdf_env",{ped:ped,firma:firma});
   var nom=$("nombre").value.trim();LS.set("tdf_nombre",nom);
   var wa=((D.ajustes&&D.ajustes.whatsapp)||C.WHATSAPP).replace(/\D/g,"");
   var url="https://wa.me/"+wa+"?text="+encodeURIComponent(mensaje());
