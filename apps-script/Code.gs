@@ -403,6 +403,9 @@ function carpetaFotos_() {
   return c.id;
 }
 
+/** Crea la carpeta de fotos en Drive (y pide el permiso si falta). Basta ejecutarla una vez. */
+function prepararFotos() { Logger.log('Carpeta de fotos: ' + carpetaFotos_()); }
+
 function subirFoto_(foto, nombre) {
   if (!foto || !/^image\/(webp|jpeg|png)$/.test(foto.mime) || typeof foto.b64 !== 'string' || foto.b64.length > 900000) throw new Error('Foto no válida o demasiado grande.');
   var ext = foto.mime.split('/')[1].replace('jpeg', 'jpg');
