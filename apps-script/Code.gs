@@ -17,7 +17,7 @@ var FILA_HIST = 15; // primera fila de datos del historial de tasas
 var AJUSTES = [
   ['nombre', 'Nombre de la tienda', 'La Tiendita del Fisio'],
   ['whatsapp', 'WhatsApp de pedidos (con 58, sin + ni espacios)', '584121854095'],
-  ['moneda_tasa', 'Tasa para calcular Bs (EUR o USD)', 'EUR'],
+  ['moneda_tasa', 'Tasa para calcular Bs (EUR o USD)', 'USD'],
   ['mostrar_agotados', 'Mostrar productos agotados (Sí o No)', 'Sí'],
   ['aviso', 'Aviso arriba de la tienda (opcional)', ''],
   ['ventajas', 'Ventajas que se muestran arriba (separadas por coma)', 'Envíos a toda Venezuela, Paga en Bs o en divisas, Atención directa por WhatsApp, Retiro en Lechería'],
