@@ -15,7 +15,7 @@ Tienda web de una sola página: el cliente ve todo el catálogo, arma su pedido 
 
 ## Tasa BCV
 
-`actualizarTasa()` corre cada 4 horas: lee bcv.org.ve, y si falla usa ve.dolarapi.com. Guarda un historial por
+`actualizarTasa()` corre cada hora: lee bcv.org.ve, y si falla usa ve.dolarapi.com. Guarda un historial por
 "fecha valor" y la web usa la última cuya fecha ya llegó (el BCV publica por adelantado la del próximo día hábil).
 Una tasa manual en la pestaña Tasa manda sobre la automática.
 

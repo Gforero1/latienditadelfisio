@@ -58,7 +58,7 @@ function instalar() {
   var sobra = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
   if (sobra && sobra.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(sobra);
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'actualizarTasa') ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('actualizarTasa').timeBased().everyHours(4).create();
+  ScriptApp.newTrigger('actualizarTasa').timeBased().everyHours(1).create();
   actualizarTasa();
   ss.setActiveSheet(ss.getSheetByName(H.PROD));
 }
@@ -218,7 +218,7 @@ function vigente_(sh) {
   return v;
 }
 
-/** Se ejecuta sola cada 4 horas. BCV primero, respaldo si falla, y si todo falla se queda la anterior. */
+/** Se ejecuta sola cada hora. BCV primero, respaldo si falla, y si todo falla se queda la anterior. */
 function actualizarTasa() {
   var sh = SpreadsheetApp.getActive().getSheetByName(H.TASA), notas = [];
   try { guardarTasa_(sh, leerBCV_()); notas.push('BCV: ok'); }
