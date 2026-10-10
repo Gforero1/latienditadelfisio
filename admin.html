@@ -35,6 +35,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--mor2);outline:0}
 .btn.sec{background:#f0ebf6;color:var(--mor)}
 .btn.rojo{background:#fff;color:var(--rojo);border:2px solid #f0c9c6}
 .err{color:var(--rojo);font-size:.92rem;margin-top:10px;min-height:1.2em}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:#fff;border-bottom:1px solid var(--linea)}
+.tabs button{min-height:50px;font-weight:700;color:var(--gris);border-bottom:3px solid transparent}
+.tabs button[aria-pressed=true]{color:var(--mor);border-bottom-color:var(--mor2)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}
+.stats div{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:10px}
+.stats b{display:block;font-size:1.25rem;color:var(--azul2)}
+.stats span{font-size:.78rem;color:var(--gris)}
+.top{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:.9rem}
+.top h3{margin:0 0 6px;font-size:.9rem;color:var(--mor)}
+.top ol{margin:0;padding-left:20px}
+.filtros{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none}
+.filtros button{flex:none;min-height:40px;padding:0 14px;border-radius:20px;background:#f0ebf6;color:var(--mor);font-weight:600;font-size:.9rem;white-space:nowrap}
+.filtros button[aria-pressed=true]{background:var(--mor);color:#fff}
+.ped{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:12px;margin-bottom:10px}
+.ped .l1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ped .l1 b{font-size:1rem}.ped .l1 span{font-weight:800;color:var(--azul2)}
+.ped small{color:var(--gris)}
+.ped pre{font:inherit;font-size:.9rem;white-space:pre-wrap;margin:8px 0;background:#faf8fc;border-radius:8px;padding:8px}
+.ped .fila{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.ped select,.ped input{min-height:46px}
+.ped .acc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.ped .btn{min-height:46px;font-size:.95rem}
+.ped a.btn{background:var(--ok);text-decoration:none}
+.e0{border-left:6px solid #F2C037}.e1{border-left:6px solid #2E9E5B}.e2{border-left:6px solid #3B82F6}.e3{border-left:6px solid #9B6BD3}.e4{border-left:6px solid #BDBDBD}
 .barra{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--linea);padding:10px 12px}
 .barra .in{max-width:760px;margin:0 auto;display:grid;gap:8px;grid-template-columns:1fr auto}
 .barra select{min-height:46px;max-width:44vw}
@@ -89,6 +113,8 @@ dialog::backdrop{background:rgba(30,10,50,.55)}
 </section>
 
 <div id="panel" hidden>
+  <nav class="tabs" aria-label="Secciones"><button type="button" id="tProd" aria-pressed="true">Productos</button><button type="button" id="tPed" aria-pressed="false">Pedidos</button></nav>
+  <div id="vProd">
   <div class="barra"><div class="in">
     <input id="q" type="search" placeholder="Buscar producto..." aria-label="Buscar producto">
     <select id="fcat" aria-label="Categoría"></select>
@@ -98,6 +124,14 @@ dialog::backdrop{background:rgba(30,10,50,.55)}
     <div id="lista"><p class="carga">Cargando productos...</p></div>
   </main>
   <button class="btn" id="nuevo" type="button">+ Nuevo producto</button>
+  </div>
+  <div id="vPed" hidden>
+    <main>
+      <div class="stats" id="stats"></div>
+      <div class="filtros" id="fEst"></div>
+      <div id="lped"><p class="carga">Cargando pedidos...</p></div>
+    </main>
+  </div>
 </div>
 
 <dialog id="dEd" aria-labelledby="hEd">
@@ -116,10 +150,14 @@ dialog::backdrop{background:rgba(30,10,50,.55)}
       <input id="edN" type="text" maxlength="120" required>
       <label for="edP">Precio en dólares</label>
       <div class="precio"><span>$</span><input id="edP" type="text" inputmode="decimal" placeholder="Vacío = precio a consultar"></div>
+      <label for="edPa">Precio de antes (solo si está en oferta)</label>
+      <div class="precio"><span>$</span><input id="edPa" type="text" inputmode="decimal" placeholder="Vacío = sin oferta"></div>
+      <div class="ayuda">Sale tachado junto al precio actual y el producto aparece en "Ofertas".</div>
       <label for="edC">Categoría</label>
       <select id="edC"></select>
       <input id="edCn" type="text" maxlength="60" placeholder="Nombre de la categoría nueva" hidden style="margin-top:8px">
       <label class="sw"><input id="edD" type="checkbox"><span>Disponible (si lo quitas, sale como agotado)</span></label>
+      <label class="sw"><input id="edX" type="checkbox"><span>Destacado (sale primero, con etiqueta "Popular")</span></label>
       <label for="edT">Descripción corta</label>
       <textarea id="edT" maxlength="400"></textarea>
       <label for="edO">Opciones (colores o tallas)</label>
@@ -186,7 +224,7 @@ function pintar(){
   var l=P.filter(function(p){return(!c||p.c===c)&&(!q||norm(p.n).indexOf(q)>-1)});
   $("cuenta").textContent=l.length+" de "+P.length+" productos";
   $("lista").innerHTML=l.length?l.map(function(p){
-    return '<button type="button" class="item'+(p.d?"":" ago")+'" data-fila="'+p.fila+'"><img src="'+esc(foto(p.f))+'" alt="" width="64" height="64" loading="lazy"><span><b>'+esc(p.n)+(p.d?"":'<span class="tag">Agotado</span>')+"</b><small>"+esc(p.c)+'</small></span><span class="pr">'+usd(p.p)+"</span></button>";
+    return '<button type="button" class="item'+(p.d?"":" ago")+'" data-fila="'+p.fila+'"><img src="'+esc(foto(p.f))+'" alt="" width="64" height="64" loading="lazy"><span><b>'+esc(p.n)+(p.d?"":'<span class="tag">Agotado</span>')+(p.pa&&p.pa>p.p?'<span class="tag">Oferta</span>':"")+(p.x?'<span class="tag">Popular</span>':"")+"</b><small>"+esc(p.c)+'</small></span><span class="pr">'+usd(p.p)+"</span></button>";
   }).join(""):'<p class="carga">No hay productos con esa búsqueda.</p>';
 }
 $("q").addEventListener("input",pintar);$("fcat").addEventListener("change",pintar);
@@ -204,7 +242,7 @@ function abrir(p){
   var c=cats(),sel=p?p.c:($("fcat").value||c[0]||"");
   $("edC").innerHTML=c.map(function(x){return '<option'+(x===sel?" selected":"")+">"+esc(x)+"</option>"}).join("")+'<option value="'+NUEVA+'">+ Categoría nueva...</option>';
   $("edCn").hidden=true;$("edCn").value="";
-  $("edD").checked=p?p.d:true;$("edT").value=p?p.t:"";$("edO").value=p?p.o:"";
+  $("edPa").value=p&&p.pa?String(p.pa).replace(".",","):"";$("edX").checked=!!(p&&p.x);$("edD").checked=p?p.d:true;$("edT").value=p?p.t:"";$("edO").value=p?p.o:"";
   $("bEliminar").hidden=!p;$("dEd").showModal();
 }
 $("edC").addEventListener("change",function(){var n=this.value===NUEVA;$("edCn").hidden=!n;if(n)$("edCn").focus()});
@@ -231,9 +269,12 @@ $("fEd").addEventListener("submit",function(e){
   if(!cat){$("eEd").textContent="Escribe el nombre de la categoría nueva.";return}
   var pr=$("edP").value.trim().replace(",",".");
   if(pr!==""&&(!isFinite(Number(pr))||Number(pr)<0)){$("eEd").textContent="El precio debe ser solo un número, por ejemplo 25 o 12,50.";return}
+  var pa=$("edPa").value.trim().replace(",",".");
+  if(pa!==""&&(!isFinite(Number(pa))||Number(pa)<0)){$("eEd").textContent="El precio de antes debe ser solo un número.";return}
+  if(pa!==""&&pr!==""&&Number(pa)<=Number(pr)){$("eEd").textContent="Para que sea oferta, el precio de antes debe ser mayor que el precio actual.";return}
   var b=$("bGuardar");ocupado(b,true,fotoNueva?"Subiendo foto y guardando...":"Guardando...");
   llamar({accion:"admin_guardar",fila:actual?actual.fila:0,original:actual?actual.n:"",foto:fotoNueva,
-    producto:{n:$("edN").value.trim(),p:pr===""?"":Number(pr),c:cat,d:$("edD").checked,t:$("edT").value.trim(),o:$("edO").value.trim()}})
+    producto:{n:$("edN").value.trim(),p:pr===""?"":Number(pr),c:cat,d:$("edD").checked,pa:pa===""?"":Number(pa),x:$("edX").checked,t:$("edT").value.trim(),o:$("edO").value.trim()}})
   .then(function(j){P=j.productos;pintar();$("dEd").close();toast("Guardado. Sale en la tienda en un par de minutos.")})
   .catch(function(er){$("eEd").textContent=er.message})
   .then(function(){ocupado(b,false)});
@@ -247,6 +288,38 @@ $("siDel").onclick=function(){
   .catch(function(er){$("dDel").close();$("eEd").textContent=er.message})
   .then(function(){ocupado(b,false)});
 };
+
+/* ---------- pedidos ---------- */
+var PED=null,EST=[],fe="";
+function ver(v){var pr=v==="prod";$("vProd").hidden=!pr;$("vPed").hidden=pr;$("tProd").setAttribute("aria-pressed",pr);$("tPed").setAttribute("aria-pressed",!pr);if(!pr)cargarPed()}
+$("tProd").onclick=function(){ver("prod")};$("tPed").onclick=function(){ver("ped")};
+function cargarPed(){llamar({accion:"admin_pedidos"}).then(function(j){PED=j.pedidos;EST=j.estados;pintarPed()}).catch(function(e){$("lped").innerHTML='<p class="carga">'+esc(e.message)+"</p>"})}
+function fechaC(f){var d=new Date(f);return isNaN(d)?f:d.toLocaleString("es-VE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
+function pintarPed(){
+  var hoy=new Date(),mes=PED.filter(function(o){var d=new Date(o.fecha);return d.getMonth()===hoy.getMonth()&&d.getFullYear()===hoy.getFullYear()});
+  var cob=mes.filter(function(o){return EST.indexOf(o.estado)>=1&&EST.indexOf(o.estado)<=3}).reduce(function(a,o){return a+o.usd},0);
+  var pend=PED.filter(function(o){return o.estado===EST[0]}).length;
+  var cnt={};PED.forEach(function(o){if(o.estado===EST[4]||Date.now()-new Date(o.fecha)>30*864e5)return;o.productos.split("\n").forEach(function(l){var m=l.match(/^(\d+) x (.+?)(?: \(| = |$)/);if(m)cnt[m[2]]=(cnt[m[2]]||0)+ +m[1]})});
+  var top=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]}).slice(0,5);
+  $("stats").innerHTML="<div><b>"+mes.length+"</b><span>pedidos este mes</span></div><div><b>$"+Math.round(cob)+"</b><span>cobrado este mes</span></div><div><b>"+pend+"</b><span>pendientes de pago</span></div>"+
+    (top.length?'<div class="top" style="grid-column:1/-1"><h3>Lo más pedido (30 días)</h3><ol>'+top.map(function(n){return "<li>"+esc(n)+" ("+cnt[n]+")</li>"}).join("")+"</ol></div>":"");
+  $("fEst").innerHTML='<button type="button" data-e="" aria-pressed="'+(fe==="")+'">Todos</button>'+EST.map(function(e){return '<button type="button" data-e="'+esc(e)+'" aria-pressed="'+(fe===e)+'">'+esc(e)+"</button>"}).join("");
+  var l=PED.filter(function(o){return !fe||o.estado===fe});
+  $("lped").innerHTML=l.length?l.map(function(o){
+    return '<div class="ped e'+EST.indexOf(o.estado)+'" data-id="'+esc(o.id)+'"><div class="l1"><b>'+esc(o.id)+(o.cliente?" · "+esc(o.cliente):"")+"</b><span>$"+o.usd.toFixed(2)+"</span></div><small>"+esc(fechaC(o.fecha))+(o.bs?" · Bs "+o.bs.toLocaleString("es-VE",{minimumFractionDigits:2,maximumFractionDigits:2}):"")+"</small><pre>"+esc(o.productos)+"</pre>"+
+      '<div class="fila"><select aria-label="Estado">'+EST.map(function(e){return "<option"+(e===o.estado?" selected":"")+">"+esc(e)+"</option>"}).join("")+'</select><input type="text" inputmode="tel" placeholder="Teléfono del cliente" aria-label="Teléfono del cliente" value="'+esc(o.tel)+'"></div>'+
+      '<input type="text" placeholder="Notas (opcional)" aria-label="Notas" value="'+esc(o.notas)+'" style="margin-top:8px">'+
+      '<div class="acc"><button type="button" class="btn sec" data-g="1">Guardar</button><a class="btn" target="_blank" rel="noopener" href="'+esc(o.aviso)+'">Avisar por WhatsApp</a></div></div>';
+  }).join(""):'<p class="carga">No hay pedidos'+(fe?" en este estado":" todavía")+".</p>";
+}
+$("fEst").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;fe=b.dataset.e;pintarPed()});
+$("lped").addEventListener("click",function(e){
+  var b=e.target.closest("[data-g]");if(!b)return;var c=b.closest(".ped"),ins=c.querySelectorAll("input");
+  ocupado(b,true,"Guardando...");
+  llamar({accion:"admin_pedido",pedido:c.dataset.id,estado:c.querySelector("select").value,tel:ins[0].value.trim(),notas:ins[1].value.trim()})
+  .then(function(j){PED=j.pedidos;EST=j.estados;pintarPed();toast("Pedido actualizado. Ya puedes avisar al cliente.")})
+  .catch(function(er){ocupado(b,false);toast(er.message)});
+});
 
 var g="";try{g=localStorage.getItem("tdf_panel")||""}catch(e){}
 if(g)entrar(g,true);

@@ -19,6 +19,7 @@ var AJUSTES = [
   ['moneda_tasa', 'Tasa para calcular Bs (EUR o USD)', 'EUR'],
   ['mostrar_agotados', 'Mostrar productos agotados (Sí o No)', 'Sí'],
   ['aviso', 'Aviso arriba de la tienda (opcional)', ''],
+  ['ventajas', 'Ventajas que se muestran arriba (separadas por coma)', 'Envíos a toda Venezuela, Paga en Bs o en divisas, Atención directa por WhatsApp, Retiro en Lechería'],
   ['instagram', 'Instagram', 'latienditadelfisio.ve'],
   ['ubicacion', 'Ubicación', 'C.E. Nueva Prensa, Av. Intercomunal Jorge Rodríguez, al lado del Hospital Las Garzas. Lechería, Anzoátegui.'],
   ['horario', 'Horario de atención', ''],
@@ -69,7 +70,7 @@ function hoja_(ss, nombre, idx) {
 
 function crearProductos_(ss) {
   var sh = hoja_(ss, H.PROD, 0);
-  var cab = ['Nombre', 'Precio $', 'Categoría', 'Disponible', 'Foto', 'Descripción corta', 'Opciones (color, talla...)'];
+  var cab = ['Nombre', 'Precio $', 'Categoría', 'Disponible', 'Foto', 'Descripción corta', 'Opciones (color, talla...)', 'Precio antes $ (oferta)', 'Destacado'];
   sh.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#3B0A57').setFontColor('#FFFFFF');
   sh.setFrozenRows(1); sh.setFrozenColumns(1);
   if (sh.getLastRow() < 2) {
@@ -78,11 +79,15 @@ function crearProductos_(ss) {
   }
   var n = Math.max(sh.getMaxRows() - 1, 1);
   sh.getRange(2, 4, n, 1).insertCheckboxes();
+  sh.getRange(2, 9, n, 1).insertCheckboxes();
+  sh.getRange(2, 8, n, 1).setNumberFormat('0.##');
+  sh.getRange(1, 8).setNote('Opcional. Si el producto está en oferta, escribe aquí el precio de antes. En la web sale tachado junto al precio actual y el producto aparece en la pestaña Ofertas.');
+  sh.getRange(1, 9).setNote('Marca los productos que más se venden. Salen primero y con la etiqueta Popular.');
   var cats = {};
   SEMILLA.forEach(function (p) { cats[p[2]] = 1; });
   sh.getRange(2, 3, n, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(Object.keys(cats), true).setAllowInvalid(true).build());
   sh.getRange(2, 2, n, 1).setNumberFormat('0.##');
-  [260, 80, 170, 90, 200, 360, 240].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  [260, 80, 170, 90, 200, 360, 240, 120, 90].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
   sh.getRange(1, 2).setNote('Solo el número, en dólares. Si lo dejas vacío, la web muestra "Precio a consultar".');
   sh.getRange(1, 4).setNote('Desmarca la casilla cuando se agote. Vuelve a marcarla cuando llegue.');
   sh.getRange(1, 5).setNote('Foto del producto. Para una foto nueva: súbela a Google Drive, compártela como "Cualquier persona con el enlace", copia el enlace y pégalo aquí. Si la dejas vacía sale el logo.');
@@ -260,7 +265,7 @@ function fotoUrl_(x) { // enlace de Drive compartido -> imagen directa
 
 function datos_() {
   var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName(H.PROD);
-  var filas = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues() : [];
+  var filas = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues() : [];
   var productos = [];
   filas.forEach(function (f) {
     var nombre = String(f[0]).trim();
@@ -270,7 +275,8 @@ function datos_() {
     productos.push({
       n: nombre, p: isFinite(precio) && precio > 0 ? precio : null, c: String(f[2]).trim() || 'Otros',
       d: f[3] !== false && String(f[3]).toLowerCase() !== 'no', f: fotos, t: String(f[5]).trim(),
-      o: String(f[6]).split(',').map(function (x) { return x.trim(); }).filter(String)
+      o: String(f[6]).split(',').map(function (x) { return x.trim(); }).filter(String),
+      pa: Number(f[7]) > 0 ? Number(f[7]) : null, x: f[8] === true
     });
   });
   var aj = ajustes_(ss), pub = {};
@@ -333,18 +339,20 @@ function telefono_(t) {
   return d;
 }
 
-function enlaceAviso_(ss, sh, fila) {
-  var f = sh.getRange(fila, 1, 1, 9).getValues()[0];
+function avisoUrl_(aj, f) { // f = fila de Pedidos (9 columnas)
   var pedido = f[1], estado = f[7];
-  var celda = sh.getRange(fila, 10);
-  if (!pedido || !estado) { celda.clearContent(); return; }
-  var aj = ajustes_(ss), plantilla = aj['msg_' + estado] || '';
+  if (!pedido || !estado) return '';
+  var plantilla = aj['msg_' + estado] || '';
   var total = '$' + (Number(f[4]) || 0).toFixed(2) + (Number(f[5]) ? ' (Bs ' + Number(f[5]).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')' : '');
   var nombre = String(f[2]).replace(/^'/, '').trim();
   var msg = plantilla.replace(/\{nombre\}/g, nombre).replace(/\{pedido\}/g, pedido).replace(/\{total\}/g, total).replace(/Hola\s+,/, 'Hola,');
-  var tel = telefono_(f[8]);
-  var url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
-  celda.setRichTextValue(SpreadsheetApp.newRichTextValue().setText('Avisar: ' + estado).setLinkUrl(url).build());
+  return 'https://wa.me/' + telefono_(f[8]) + '?text=' + encodeURIComponent(msg);
+}
+
+function enlaceAviso_(ss, sh, fila) {
+  var f = sh.getRange(fila, 1, 1, 9).getValues()[0], celda = sh.getRange(fila, 10), url = avisoUrl_(ajustes_(ss), f);
+  if (!url) { celda.clearContent(); return; }
+  celda.setRichTextValue(SpreadsheetApp.newRichTextValue().setText('Avisar: ' + f[7]).setLinkUrl(url).build());
 }
 
 /** Al editar a mano: rehace el enlace "Avisar" del pedido y refresca la web si cambió el catálogo. */
@@ -418,10 +426,20 @@ function subirFoto_(foto, nombre) {
 function filasAdmin_(sh) {
   var n = sh.getLastRow() - 1;
   if (n < 1) return [];
-  return sh.getRange(2, 1, n, 7).getValues().map(function (f, i) {
+  return sh.getRange(2, 1, n, 9).getValues().map(function (f, i) {
     var foto = String(f[4]).split(/[\n;]+|,\s+/)[0].trim();
-    return { fila: i + 2, n: String(f[0]).trim(), p: f[1] === '' ? null : Number(f[1]), c: String(f[2]).trim(), d: f[3] !== false, f: foto ? fotoUrl_(foto) : '', t: String(f[5]), o: String(f[6]) };
+    return { fila: i + 2, n: String(f[0]).trim(), p: f[1] === '' ? null : Number(f[1]), c: String(f[2]).trim(), d: f[3] !== false, f: foto ? fotoUrl_(foto) : '', t: String(f[5]), o: String(f[6]), pa: Number(f[7]) > 0 ? Number(f[7]) : null, x: f[8] === true };
   }).filter(function (x) { return x.n; });
+}
+
+function pedidosAdmin_(ss, pe) {
+  var n = Math.min(pe.getLastRow() - 1, 200);
+  if (n < 1) return [];
+  var aj = ajustes_(ss);
+  return pe.getRange(2, 1, n, 11).getValues().filter(function (f) { return f[1]; }).map(function (f) {
+    return { id: String(f[1]), fecha: f[0] instanceof Date ? f[0].toISOString() : String(f[0]), cliente: String(f[2]), productos: String(f[3]),
+      usd: Number(f[4]) || 0, bs: Number(f[5]) || 0, estado: String(f[7]), tel: String(f[8]), notas: String(f[10]), aviso: avisoUrl_(aj, f) };
+  });
 }
 
 function admin_(d) {
@@ -445,18 +463,37 @@ function admin_(d) {
           if (!nombre) throw new Error('El producto necesita un nombre.');
           var precio = x.p === '' || x.p === null || x.p === undefined ? '' : Number(String(x.p).replace(',', '.'));
           if (precio !== '' && (!isFinite(precio) || precio < 0 || precio > 100000)) throw new Error('El precio no es válido.');
+          var antes = x.pa === '' || x.pa === null || x.pa === undefined ? '' : Number(String(x.pa).replace(',', '.'));
+          if (antes !== '' && (!isFinite(antes) || antes < 0 || antes > 100000)) throw new Error('El precio de antes no es válido.');
           var foto = d.foto ? subirFoto_(d.foto, nombre) : null;
           if (!fila) {
             fila = Math.max(sh.getLastRow(), 1) + 1;
             if (fila > sh.getMaxRows()) sh.insertRowAfter(sh.getMaxRows());
             sh.getRange(fila, 4).insertCheckboxes();
+            sh.getRange(fila, 9).insertCheckboxes();
             sh.getRange(fila, 5).setValue(foto || '');
           } else if (foto) sh.getRange(fila, 5).setValue(foto);
           sh.getRange(fila, 1, 1, 4).setValues([[nombre, precio, limpio_(x.c, 60).trim() || 'Otros', x.d !== false]]);
-          sh.getRange(fila, 6, 1, 2).setValues([[limpio_(x.t, 400), limpio_(x.o, 300)]]);
+          sh.getRange(fila, 6, 1, 4).setValues([[limpio_(x.t, 400), limpio_(x.o, 300), antes, x.x === true]]);
         }
         SpreadsheetApp.flush();
         refrescarWeb();
+      } else if (d.accion === 'admin_pedidos' || d.accion === 'admin_pedido') {
+        var ss = SpreadsheetApp.getActive(), pe = ss.getSheetByName(H.PED);
+        if (d.accion === 'admin_pedido') {
+          if (ESTADOS.indexOf(d.estado) < 0) throw new Error('Estado no válido.');
+          var ids = pe.getLastRow() > 1 ? pe.getRange(2, 2, pe.getLastRow() - 1, 1).getValues() : [], fp = 0;
+          for (var k = 0; k < ids.length; k++) if (ids[k][0] === d.pedido) { fp = k + 2; break; }
+          if (!fp) throw new Error('No encontré ese pedido. Actualiza la lista.');
+          pe.getRange(fp, 8, 1, 2).setValues([[d.estado, limpio_(String(d.tel || '').replace(/[^\d+ ()-]/g, ''), 25)]]);
+          pe.getRange(fp, 11).setValue(limpio_(d.notas, 300));
+          enlaceAviso_(ss, pe, fp);
+          SpreadsheetApp.flush();
+        }
+        res.pedidos = pedidosAdmin_(ss, pe);
+        res.estados = ESTADOS;
+        res.ok = true;
+        return res;
       } else if (d.accion !== 'admin_listar') throw new Error('Acción desconocida.');
       res.productos = filasAdmin_(sh);
       res.ok = true;
